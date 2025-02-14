@@ -1,0 +1,122 @@
+schemaVersion: '0.3'
+description: |+
+  # Start-AutoGroup
+
+  Run a Start automation against groups of EC2 Instances.
+
+  This Runbook uses the following EC2 instance tags:
+
+  AutoGroup <StringList>
+  - List of EC2 tag:AutoGroup(s) to process
+
+  AutoCommand <local command>
+  - Command to be ran on the local instance to set the application run state. The Runbook calls this command with option 'start'
+
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  AutoGroups:
+    type: StringList
+    description: (Required) Specify a list of EC2 instance groups to target matching EC2 tag:AutoGroup. The VM's and Apps are processed in order.
+  IncludeInstances:
+    type: Boolean
+    default: true
+    description: Include EC2 instances in this execution
+    allowedValues:
+      - true
+      - false
+  IncludeApps:
+    type: Boolean
+    default: true
+    description: Include App processing in this exectution, by calling the EC2 tag:AutoCommand with option 'start'
+    allowedValues:
+      - true
+      - false
+  AutomationAssumeRole:
+    type: String
+    default: ''
+    description: (Optional) The Amazon Resource Name (ARN) of the IAM role that allows Automation to perform the actions on your behalf. If no role is specified, Systems Manager Automation uses your IAM permissions to operate this runbook.
+mainSteps:
+  - name: BranchOnProcessType
+    action: aws:branch
+    isEnd: true
+    inputs:
+      Choices:
+        - NextStep: ProcessVMandApp
+          And:
+            - Variable: '{{ IncludeInstances }}'
+              BooleanEquals: true
+            - Variable: '{{ IncludeApps }}'
+              BooleanEquals: true
+        - NextStep: ProcessVMOnly
+          Variable: '{{ IncludeInstances }}'
+          BooleanEquals: true
+        - NextStep: ProcessAppOnly
+          Variable: '{{ IncludeApps }}'
+          BooleanEquals: true
+  - name: ProcessVMandApp
+    action: aws:loop
+    isEnd: true
+    inputs:
+      Iterators: '{{ AutoGroups }}'
+      Steps:
+        - name: StartVMGroup
+          action: aws:executeAutomation
+          timeoutSeconds: 7200
+          nextStep: StartAppGroup
+          isEnd: false
+          inputs:
+            DocumentName: AWS-StartEC2Instance
+            Targets:
+              - Key: tag:AutoGroup
+                Values:
+                  - '{{ ProcessVMandApp.CurrentIteratorValue }}'
+            TargetParameterName: InstanceId
+        - name: StartAppGroup
+          action: aws:executeAutomation
+          timeoutSeconds: 7200
+          isEnd: true
+          inputs:
+            DocumentName: Run-AutoCommand
+            Targets:
+              - Key: tag:AutoGroup
+                Values:
+                  - '{{ ProcessVMandApp.CurrentIteratorValue }}'
+            TargetParameterName: InstanceId
+            RuntimeParameters:
+              CommandOptions: start
+  - name: ProcessVMOnly
+    action: aws:loop
+    isEnd: true
+    inputs:
+      Iterators: '{{ AutoGroups }}'
+      Steps:
+        - name: StartVMOnlyGroup
+          action: aws:executeAutomation
+          timeoutSeconds: 7200
+          isEnd: true
+          inputs:
+            DocumentName: AWS-StartEC2Instance
+            Targets:
+              - Key: tag:AutoGroup
+                Values:
+                  - '{{ ProcessVMOnly.CurrentIteratorValue }}'
+            TargetParameterName: InstanceId
+  - name: ProcessAppOnly
+    action: aws:loop
+    isEnd: true
+    inputs:
+      Iterators: '{{ AutoGroups }}'
+      Steps:
+        - name: StartAppOnlyGroup
+          action: aws:executeAutomation
+          timeoutSeconds: 7200
+          isEnd: true
+          inputs:
+            DocumentName: Run-AutoCommand
+            Targets:
+              - Key: tag:AutoGroup
+                Values:
+                  - '{{ ProcessAppOnly.CurrentIteratorValue }}'
+            TargetParameterName: InstanceId
+            RuntimeParameters:
+              CommandOptions: start

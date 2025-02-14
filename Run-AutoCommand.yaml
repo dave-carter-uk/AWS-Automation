@@ -1,0 +1,83 @@
+schemaVersion: '0.3'
+description: |+
+  # Run-AutoCommand
+
+  Run automation command  identified by EC2  instance tag 'AutoCommand'.
+
+assumeRole: '{{ AutomationAssumeRole }}'
+parameters:
+  InstanceId:
+    type: String
+    description: (Required) EC2 Instance id
+  CommandOptions:
+    type: String
+    description: (Optional) Add parameter options for tag:AutoCommand
+    default: ''
+  AutomationAssumeRole:
+    type: String
+    default: ''
+    description: (Optional) The Amazon Resource Name (ARN) of the IAM role that allows Automation to perform the       actions on your behalf. If no role is specified, Systems Manager       Automation uses your IAM permissions to operate this runbook.
+mainSteps:
+  - name: GetInstanceDetails
+    action: aws:executeAwsApi
+    nextStep: ChooseOSType
+    isEnd: false
+    inputs:
+      Service: ec2
+      Api: DescribeInstances
+      InstanceIds:
+        - '{{InstanceId}}'
+    outputs:
+      - Name: InstanceState
+        Type: String
+        Selector: $.Reservations[0].Instances[0].State.Name
+      - Type: String
+        Name: InstancePlatform
+        Selector: $.Reservations[0].Instances[0].PlatformDetails
+      - Type: String
+        Name: AutoCommand
+        Selector: $.Reservations[0].Instances[0].Tags[?(@.Key=='AutoCommand')].Value
+  - name: ChooseOSType
+    action: aws:branch
+    isEnd: true
+    inputs:
+      Choices:
+        - NextStep: RunPowerShellScript
+          And:
+            - Variable: '{{ GetInstanceDetails.InstanceState }}'
+              StringEquals: running
+            - Variable: '{{ GetInstanceDetails.InstancePlatform }}'
+              Contains: Windows
+            - Not:
+                Variable: '{{ GetInstanceDetails.AutoCommand }}'
+                Contains: '{{'
+        - NextStep: RunShellScript
+          And:
+            - Variable: '{{ GetInstanceDetails.InstanceState }}'
+              StringEquals: running
+            - Not:
+                Variable: '{{ GetInstanceDetails.InstancePlatform }}'
+                Contains: Windows
+            - Not:
+                Variable: '{{ GetInstanceDetails.AutoCommand }}'
+                Contains: '{{'
+  - name: RunPowerShellScript
+    action: aws:runCommand
+    isEnd: true
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      Parameters:
+        commands:
+          - '{{GetInstanceDetails.AutoCommand}} {{CommandOptions}}'
+      InstanceIds:
+        - '{{InstanceId}}'
+  - name: RunShellScript
+    action: aws:runCommand
+    isEnd: true
+    inputs:
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - '{{GetInstanceDetails.AutoCommand}} {{CommandOptions}}'
+      InstanceIds:
+        - '{{InstanceId}}'
