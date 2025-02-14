@@ -52,7 +52,7 @@ The start and stop Runbooks can call a local host command specified by tag:AutoC
 
 The command is called either as a PowerShell script or as a shell script depending on platform type
 
-Example host control scripts can be found at Azure-Automation/Host-Scripts at main · dave-carter-uk/Azure-Automation
+Example host application control scripts can be found at https://github.com/dave-carter-uk/Apps-Stop-Start-Control
 
 For this example we are just using simple scripts that don’t do anything:
 
