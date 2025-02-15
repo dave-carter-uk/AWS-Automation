@@ -26,7 +26,49 @@ The instances are given the following tags:
 *In this example MYAPPSERVER1 doesn't have any apps that need starting as part of the process so the AutoCommand tag is not specified*
 
 For Example:
+
 ![image](https://github.com/user-attachments/assets/cbf17110-3ed7-4c2d-b0e8-0ab15874b528)
+
+## VM Prioritisation
+VM's are grouped by tag AutoGroup we provide the start and stop group order when calling the Start/Stop-AutoGroup runbook.
+
+**Example 1**<br/>
+A three tier BW SAP system can be defined as follows:
+
+|VM|Usage|AutoGroup|
+|--|-----|---------|
+|BWDBHOST|BW Database Host|DBGroup|
+|BWASCSHOST|BW ASCS Host|DBGroup|
+|BWAPPHOST1|BW Instance|APPGroup1|
+|BWAPPHOST2|BW Instance|APPGroup1|
+|BWAPPHOST3|BW Instance|AppGroup1|
+
+We can use Start-AutoGroup with groups: DBGroup,APPGroup1 to start the VM's in order. The DB and ASCS hosts are started first simultaneously followed by the 3 app instances
+
+We use Stop-AutoGroup with groups: APPGroup1, DBGroup to stop the VM's in order. The 3 app instances are stopped first simultaneously followed by the DB and ASCS instances
+
+
+**Example 2**<br/>
+Expanding on Example 1, a Business Objects and Business Objects Data Services systems are added to the landscape, these system are dependent on the BW system
+We have also added an AutoCommand to be called as part of the start or stop process
+
+|VM|Usage|AutoGroup|AutoCommand|
+|--|-----|---------|-----------|
+|BWDBHOST|BW Database Host|DBGroup|/usr/sap/azcontrol.sh|
+|BODBHOST|BO Database Host|DBGroup|C:\usr\sap\azcontrol.ps1|
+|DSDBHOST|DS Database Host|DBGroup|C:\usr\sap\azcontrol.ps1|
+|BWASCSHOST|BW ASCS Host|DBGroup|C:\usr\sap\azcontrol.ps1|
+|BWDAPPHOST1|BW Instance Host|APPGroup1|C:\usr\sap\azcontrol.ps1|
+|BWDAPPHOST2|BW Instance Host|APPGroup1|C:\usr\sap\azcontrol.ps1|
+|BWDAPPHOST2|BW Instance Host|APPGroup1|C:\usr\sap\azcontrol.ps1|
+|BOAPPHOST|BO SIA+WEB|APPGroup2||
+|DSAPPHOST|DS SIA+WEB|APPGroup2||
+
+*No AutoCommand is set for BOAPPHOST and DSAPPHOST because the BO services are configured to auto start*
+
+Start-AutoGroup: DBGroup,APPGroup1,APPGroup2
+
+Stop-AutoGroup: APPGroup2, APPGroup1, DBGroup
 
 ## Create Automation Runbooks
 Use AWS Systems Manager to create the 3 Automation Runbooks
