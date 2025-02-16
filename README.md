@@ -70,6 +70,23 @@ Start-AutoGroup: DBGroup,APPGroup1,APPGroup2
 
 Stop-AutoGroup: APPGroup2, APPGroup1, DBGroup
 
+## AutoCommand
+Runbook calls the command identified by tag:AutoCommand and provides parameter start,stop or check.
+
+The command can be any script to be ran on the host VM to perform the required action.
+
+Scripts are ran as NT/SYSTEM user for Windows and root user for Linux.
+
+
+**Example:**
+- Windows	Tag:autoCommand = C:\azscripts\azcontrol.ps1
+- Linux		Tag:autoCommand = /azscripts/azcontrol.sh
+
+Runbook will add parameter start, stop or check.
+
+https://github.com/dave-carter-uk/Apps-Stop-Start-Control provides some example scripts
+
+
 ## Create Automation Runbooks
 Use AWS Systems Manager to create the 3 Automation Runbooks
 ![image](https://github.com/user-attachments/assets/a677dd5a-0c81-438f-be95-d31826a26430)
